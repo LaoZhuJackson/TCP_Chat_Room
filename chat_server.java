@@ -98,7 +98,9 @@ public class chat_server extends JFrame implements ActionListener {
         try {
             //给接收方绑定一个PrintWriter，更新别人对他的私聊
             PrintWriter out = new PrintWriter(clients.get(receiveName).getOutputStream(), true);
+            PrintWriter out_self = new PrintWriter(clients.get(sendName).getOutputStream(), true);
             out.println("来自 " + sendName + " 的私聊：" + message);
+            out_self.println("私聊 "+receiveName+" :"+message);//同步更新自己的对话框
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -181,7 +183,7 @@ public class chat_server extends JFrame implements ActionListener {
                         //调用私聊某个user的方法
                         sendToUser(this.client_name, receiveName, message);
                     } else {//非私聊，则是群发
-                        sendToAllClient(this.client_name + ":" + fromClientData);
+                        sendToAllClient(this.client_name + "：" + fromClientData);
                     }
                 }
             } catch (IOException e) {
