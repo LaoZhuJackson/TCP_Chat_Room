@@ -13,9 +13,10 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 
 public class chat_client2 extends JFrame implements ActionListener {
-    private InetAddress ip_address = null;
     private final int port = 65533;
+    private int first_sendFlag=0;
 
+    private InetAddress ip_address = null;
     private PrintWriter client_out;
     private BufferedReader client_in;
     private Socket client_socket;
@@ -25,7 +26,7 @@ public class chat_client2 extends JFrame implements ActionListener {
     private JTextArea jta_friends = new JTextArea(5, 15);// 好友列表
     private JTextArea jta_input = new JTextArea(5, 20);// 聊天输入
     private JTextField jtf_ip = new JTextField();// 本机ip
-    private JTextField jtf_port = new JTextField(port);// 监听的port
+    private JTextField jtf_name = new JTextField();// 本机用户名
     private JPanel jp_bottom = new JPanel();
     private JPanel jp_foot = new JPanel();
     private JButton jb_send = new JButton("发送");
@@ -35,7 +36,7 @@ public class chat_client2 extends JFrame implements ActionListener {
     public chat_client2() {
         super("Chat room:client");
         try {
-            ip_address=InetAddress.getLocalHost();
+            ip_address = InetAddress.getLocalHost();
         } catch (UnknownHostException e) {
             e.printStackTrace();
         }
@@ -46,7 +47,7 @@ public class chat_client2 extends JFrame implements ActionListener {
             JOptionPane.showMessageDialog(chat_client2.this, "端口可能被占用，请换一个空闲端口！");
             e.printStackTrace();
         }
-        jl_status.setText("正在监听"+port+"端口！");
+        jl_status.setText("正在监听" + port + "端口！");
     }
 
     private void initSocket() throws IOException {
@@ -80,10 +81,14 @@ public class chat_client2 extends JFrame implements ActionListener {
         jp_bottom.add(jta_input, BorderLayout.CENTER);
         jp_bottom.add(jp_foot, BorderLayout.SOUTH);
         jta_input.setBorder(BorderFactory.createTitledBorder("Please enter text:"));
-        jp_foot.setLayout(new GridLayout(1,5));
+        jp_foot.setLayout(new GridLayout(1, 5));
+        jtf_ip.setBorder(BorderFactory.createTitledBorder("Host ip"));
+        jtf_ip.setEditable(false);
+        jtf_name.setBorder(BorderFactory.createTitledBorder("User name"));
+        jtf_name.setEditable(false);
         jtf_ip.setText(ip_address.getHostAddress());
         jp_foot.add(jtf_ip);
-        jp_foot.add(jtf_port);
+        jp_foot.add(jtf_name);
         jb_send.addActionListener(this);
         jb_clear.addActionListener(this);
         jb_exit.addActionListener(this);
@@ -96,23 +101,27 @@ public class chat_client2 extends JFrame implements ActionListener {
 
     @Override
     public void actionPerformed(ActionEvent e) {
-        if (e.getSource()==jb_send){
+        if (e.getSource() == jb_send) {
             //获取客户端输入
             String input = jta_input.getText();
+            if (first_sendFlag++ ==0){
+                jtf_name.setText(input);
+            }
             client_out.println(input);//发消息给服务器
             client_out.flush();
             jta_log.setCaretPosition(jta_log.getText().length());
             jta_input.setText("");
         }
-        else if (e.getSource()==jb_clear){
+        if (e.getSource() == jb_clear) {
             jta_log.setText("");
-        }else{//按退出按钮
+        }
+        if (e.getSource() == jb_exit) {//按退出按钮
             client_out.println("exit");
             try {//客户端退出服务器
                 client_out.close();
                 client_in.close();
                 client_socket.close();
-            }catch (IOException e1){
+            } catch (IOException e1) {
                 e1.printStackTrace();
             }
             dispose();//销毁当前窗口
@@ -125,15 +134,19 @@ public class chat_client2 extends JFrame implements ActionListener {
                 //接收服务器消息
                 String fromServer_data;
                 while ((fromServer_data = client_in.readLine()) != null) {
-                    jta_log.append(fromServer_data+"\n");
+                    if (fromServer_data.contains("Online:")){
+                        String [] friend=fromServer_data.split("\\|");//通过标志符分割
+                        jta_friends.setText("");//先清空
+                        for (String s :friend){
+                            jta_friends.append(s+"\n");
+                        }
+                    }else {
+                        jta_log.append(fromServer_data + "\n");
+                    }
                 }
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
-    }
-
-    public static void main(String[] args) throws IOException{
-        new chat_client2();
     }
 }

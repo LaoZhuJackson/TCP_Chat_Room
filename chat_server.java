@@ -23,7 +23,6 @@ public class chat_server extends JFrame implements ActionListener {
     private ServerSocket serverSocket;
     private Map<String, Socket> clients;//存放访问服务器的客户端和其用户名
 
-
     public chat_server() {
         super("Chat room:server");
         initUI();
@@ -45,6 +44,19 @@ public class chat_server extends JFrame implements ActionListener {
             Socket client_socket = serverSocket.accept();//在没接受到客户端请求之前，这个accept会一直阻塞
             new HandleClientThread(client_socket).start();//开启新线程处理请求
         }
+    }
+    //刷新客户端在线用户列表
+    private  void refresh_friend(){
+        int i=0;
+        StringBuilder temp=new StringBuilder();
+        temp.append("Online:");
+        //将用户加入字符串
+        for (Map.Entry<String,Socket> user:clients.entrySet()){
+            i++;
+            temp.append("|").append(i).append(".").append(user.getKey());
+        }
+        sendToAllClient(String.valueOf(temp));
+        System.out.println("执行刷新操作,temp的值为："+temp);
     }
 
     //初始化图形界面
@@ -111,12 +123,11 @@ public class chat_server extends JFrame implements ActionListener {
         System.out.println("运行了showList");
         jta_friends_status.setText("在线人数：" + clients.size());
         System.out.println("当前的clients值为：" + clients.size());
-        int count=1;
-
         //更新服务器用户列表
+        int client_count=0;
         for (Map.Entry<String, Socket> user : clients.entrySet()) {
-            jta_friends_status.append(" " + count + "." + user.getKey() + "----");
-            count++;
+            client_count++;
+            jta_friends_status.append("|" + client_count + "." + user.getKey() + "----");
         }
     }
 
@@ -125,6 +136,7 @@ public class chat_server extends JFrame implements ActionListener {
         clients.remove(client_name);
         if (client_name != null)
             sendToAllClient(client_name + "退出群聊");
+        refresh_friend();
         chat_server.this.showUserList();
     }
 
@@ -134,7 +146,6 @@ public class chat_server extends JFrame implements ActionListener {
         private BufferedReader server_in;//BufferedReader用于加快读取字符的速度
         private PrintWriter server_out;//具有自动行刷新的缓冲字符输出流，特点是可以按行写出字符串，并且可以自动行刷新
         private String client_name;
-        private ThreadLocal<Integer> count=new ThreadLocal<>();
 
         public HandleClientThread(Socket client_socket) {
             try {
@@ -172,14 +183,15 @@ public class chat_server extends JFrame implements ActionListener {
                         this.client_name = fromClientData;
                         clients.put(this.client_name, this.clientSocket);//存入hashMap
                         sendToAllClient("欢迎：" + this.client_name + " 加入聊天室");
+                        refresh_friend();//更新客户端在线人数信息
                         chat_server.this.showUserList();
                         continue;
                     }
                     //处理私聊  格式： @接收客户端名字：所说内容
                     if (fromClientData.startsWith("@")) {
                         //获取客户端名字
-                        String receiveName = fromClientData.substring(1, fromClientData.indexOf(":"));
-                        String message = fromClientData.substring(fromClientData.indexOf(":") + 1);
+                        String receiveName = fromClientData.substring(1, fromClientData.indexOf("："));
+                        String message = fromClientData.substring(fromClientData.indexOf("：") + 1);
                         //调用私聊某个user的方法
                         sendToUser(this.client_name, receiveName, message);
                     } else {//非私聊，则是群发
